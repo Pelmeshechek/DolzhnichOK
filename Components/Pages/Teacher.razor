@@ -1,0 +1,163 @@
+@rendermode InteractiveServer
+@page "/prepodavatel"
+@using System.ComponentModel.DataAnnotations
+
+<PageTitle>Новая отработка — ДолжничОК</PageTitle>
+
+<section class="page-frame">
+    <div class="page-heading">
+        <div>
+            <p class="eyebrow">Кабинет преподавателя</p>
+            <h1>Новая отработка</h1>
+        </div>
+        <div class="user-actions">
+            <span class="user-label">Преподаватель: <strong>Петров А. С.</strong></span>
+            <a class="button button-outline" href="/">Выйти</a>
+        </div>
+    </div>
+
+    <div class="form-divider"></div>
+
+    <EditForm Model="@draft" OnValidSubmit="@CreateSession">
+        <DataAnnotationsValidator />
+        <ValidationSummary class="validation-summary" />
+
+        <div class="form-grid">
+            <div class="form-field field-full">
+                <label class="field-label" for="subject">Предмет <span class="required">*</span></label>
+                <InputText id="subject" class="form-control" @bind-Value="draft.Subject"
+                           placeholder="Например, математический анализ" />
+                <ValidationMessage For="@(() => draft.Subject)" />
+            </div>
+
+            <div class="form-field">
+                <label class="field-label" for="room">Аудитория <span class="required">*</span></label>
+                <InputSelect id="room" class="form-control" @bind-Value="draft.Room">
+                    <option value="">Выберите аудиторию</option>
+                    <option value="Ауд. 105">Ауд. 105</option>
+                    <option value="Ауд. 210">Ауд. 210</option>
+                    <option value="Ауд. 312">Ауд. 312</option>
+                    <option value="Ауд. 405">Ауд. 405</option>
+                </InputSelect>
+                <ValidationMessage For="@(() => draft.Room)" />
+            </div>
+
+            <div class="form-field">
+                <label class="field-label" for="places">Максимум мест <span class="required">*</span></label>
+                <InputNumber id="places" class="form-control" @bind-Value="draft.MaxPlaces" />
+                <small class="field-hint">Не больше вместимости аудитории</small>
+                <ValidationMessage For="@(() => draft.MaxPlaces)" />
+            </div>
+
+            <div class="form-field">
+                <label class="field-label" for="date">Дата <span class="required">*</span></label>
+                <InputDate id="date" class="form-control" @bind-Value="draft.Date" />
+            </div>
+
+            <div class="form-field">
+                <label class="field-label" for="start-time">Время начала <span class="required">*</span></label>
+                <input id="start-time" class="form-control" type="time" @bind="draft.StartTime" />
+            </div>
+
+            <div class="form-field">
+                <label class="field-label" for="end-time">Время окончания <span class="required">*</span></label>
+                <input id="end-time" class="form-control" type="time" @bind="draft.EndTime" />
+            </div>
+
+            <div class="form-field field-full">
+                <label class="field-label" for="deadline">Дедлайн записи <span class="optional">(необязательно)</span></label>
+                <InputDate id="deadline" class="form-control" @bind-Value="draft.BookingDeadline" />
+                <small class="field-hint">После этой даты студенты не смогут записаться</small>
+            </div>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <p class="form-message form-message-error" role="alert">@errorMessage</p>
+        }
+
+        @if (created)
+        {
+            <div class="success-message" role="status">
+                <strong>Макет отработки заполнен.</strong>
+                <span>«@draft.Subject», @draft.Date.ToString("dd.MM.yyyy"), @draft.StartTime, @draft.Room. Эти данные пока не сохранены.</span>
+            </div>
+        }
+
+        <div class="form-divider"></div>
+
+        <div class="form-actions">
+            <button class="button button-primary" type="submit">Создать отработку</button>
+            <button class="button button-outline" type="button" @onclick="ResetForm">Отмена</button>
+        </div>
+    </EditForm>
+</section>
+
+@code {
+    private SessionDraft draft = CreateEmptyDraft();
+    private string? errorMessage;
+    private bool created;
+
+    private void CreateSession()
+    {
+        errorMessage = null;
+        created = false;
+
+        if (draft.StartTime is not TimeOnly start || draft.EndTime is not TimeOnly end)
+        {
+            errorMessage = "Укажите время начала и окончания.";
+            return;
+        }
+
+        if (end <= start)
+        {
+            errorMessage = "Время окончания должно быть позже времени начала.";
+            return;
+        }
+
+        if (draft.Date.Date < DateTime.Today)
+        {
+            errorMessage = "Дата отработки не может быть в прошлом.";
+            return;
+        }
+
+        created = true;
+    }
+
+    private void ResetForm()
+    {
+        draft = CreateEmptyDraft();
+        errorMessage = null;
+        created = false;
+    }
+
+    private static SessionDraft CreateEmptyDraft() => new()
+    {
+        Date = DateTime.Today.AddDays(7),
+        MaxPlaces = 15,
+        StartTime = new TimeOnly(14, 30),
+        EndTime = new TimeOnly(16, 0)
+    };
+
+    private sealed class SessionDraft
+    {
+        [Required(ErrorMessage = "Укажите предмет.")]
+        [StringLength(100, MinimumLength = 2, ErrorMessage = "Название предмета должно содержать от 2 до 100 символов.")]
+        public string Subject { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Выберите аудиторию.")]
+        public string Room { get; set; } = string.Empty;
+
+        [Range(1, 30, ErrorMessage = "Количество мест должно быть от 1 до 30.")]
+        public int MaxPlaces { get; set; }
+
+        public DateTime Date { get; set; }
+        public TimeOnly? StartTime { get; set; }
+        public TimeOnly? EndTime { get; set; }
+        public DateTime? BookingDeadline { get; set; }
+    }
+}
+
+
+
+

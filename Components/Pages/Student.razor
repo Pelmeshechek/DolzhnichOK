@@ -1,0 +1,195 @@
+@rendermode InteractiveServer
+@page "/student"
+
+<PageTitle>Доступные отработки — ДолжничОК</PageTitle>
+
+<section class="page-frame">
+    <div class="page-heading">
+        <div>
+            <p class="eyebrow">Кабинет студента</p>
+            <h1>Доступные отработки</h1>
+        </div>
+        <div class="user-actions">
+            <span class="user-label">Студент: <strong>Иванов Иван</strong></span>
+            <a class="button button-outline" href="/">Выйти</a>
+        </div>
+    </div>
+
+    <div class="form-divider"></div>
+
+    <div class="filters" aria-label="Поиск и фильтры">
+        <label class="filter-control search-control">
+            <span>Поиск</span>
+            <input class="form-control" @bind="searchText" @bind:event="oninput"
+                   placeholder="Фамилия преподавателя" />
+        </label>
+
+        <label class="filter-control">
+            <span>Предмет</span>
+            <select class="form-control" @bind="selectedSubject">
+                <option value="">Все предметы</option>
+                @foreach (var subject in sessions.Select(x => x.Subject).Distinct().OrderBy(x => x))
+                {
+                    <option value="@subject">@subject</option>
+                }
+            </select>
+        </label>
+
+        <label class="filter-control">
+            <span>Кафедра</span>
+            <select class="form-control" @bind="selectedDepartment">
+                <option value="">Все кафедры</option>
+                @foreach (var department in sessions.Select(x => x.Department).Distinct().OrderBy(x => x))
+                {
+                    <option value="@department">@department</option>
+                }
+            </select>
+        </label>
+
+        <label class="filter-control">
+            <span>Сортировка</span>
+            <select class="form-control" @bind="sortOrder">
+                <option value="date">Сначала ближайшие</option>
+                <option value="subject">По предмету</option>
+            </select>
+        </label>
+    </div>
+
+    <p class="results-count">Найдено отработок: <strong>@VisibleSessions.Count()</strong></p>
+
+    @if (!VisibleSessions.Any())
+    {
+        <div class="empty-state">
+            <h2>Ничего не найдено</h2>
+            <p>Измените поисковый запрос или выберите другие фильтры.</p>
+        </div>
+    }
+    else
+    {
+        <div class="session-list">
+            @foreach (var session in VisibleSessions)
+            {
+                <article class="session-card">
+                    <div class="session-info">
+                        <div class="session-title-row">
+                            <h2>@session.TeacherName</h2>
+                            @if (session.IsSignedUp)
+                            {
+                                <span class="status-pill status-signed">Вы записаны</span>
+                            }
+                            else if (session.FreePlaces == 0)
+                            {
+                                <span class="status-pill status-full">Мест нет</span>
+                            }
+                        </div>
+                        <p class="session-subject"><strong>Предмет:</strong> @session.Subject</p>
+                        <p class="session-meta">@session.Department · @session.AcademicTitle · @session.Room</p>
+                        <p class="session-meta">@session.Date.ToString("dd.MM.yyyy") · @session.Time · Свободно мест: @session.FreePlaces из @session.MaxPlaces</p>
+                    </div>
+
+                    @if (session.IsSignedUp)
+                    {
+                        <button class="button button-signed" type="button" @onclick="() => ToggleSignup(session)">Вы записаны</button>
+                    }
+                    else if (session.FreePlaces > 0)
+                    {
+                        <button class="button button-primary" type="button" @onclick="() => ToggleSignup(session)">Записаться</button>
+                    }
+                    else
+                    {
+                        <button class="button button-disabled" type="button" disabled>Мест нет</button>
+                    }
+                </article>
+            }
+        </div>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(feedback))
+    {
+        <div class="toast-message" role="status">@feedback</div>
+    }
+</section>
+
+@code {
+    private string searchText = string.Empty;
+    private string selectedSubject = string.Empty;
+    private string selectedDepartment = string.Empty;
+    private string sortOrder = "date";
+    private string? feedback;
+
+    private readonly List<DemoSession> sessions =
+    [
+        new("Алексеев Дмитрий Сергеевич", "Программирование", "Кафедра ИТ", "доцент", "Ауд. 405",
+            DateTime.Today.AddDays(2), "14:30–16:00", 8, 5),
+        new("Иванова Мария Петровна", "Линейная алгебра", "Кафедра высшей математики", "профессор", "Ауд. 210",
+            DateTime.Today.AddDays(3), "10:00–11:30", 12, 6),
+        new("Кузнецов Алексей Владимирович", "Физика", "Кафедра физики", "старший преподаватель", "Ауд. 105",
+            DateTime.Today.AddDays(5), "12:00–13:30", 10, 4),
+        new("Петров Сергей Николаевич", "Математический анализ", "Кафедра высшей математики", "доцент", "Ауд. 312",
+            DateTime.Today.AddDays(6), "15:00–16:30", 10, 0),
+        new("Смирнов Олег Игоревич", "Математический анализ", "Кафедра высшей математики", "доцент", "Ауд. 314",
+            DateTime.Today.AddDays(7), "09:30–11:00", 15, 9, true)
+    ];
+
+    private IEnumerable<DemoSession> VisibleSessions
+    {
+        get
+        {
+            var result = sessions.Where(session =>
+                (string.IsNullOrWhiteSpace(searchText) ||
+                 session.TeacherName.Contains(searchText, StringComparison.CurrentCultureIgnoreCase)) &&
+                (string.IsNullOrWhiteSpace(selectedSubject) || session.Subject == selectedSubject) &&
+                (string.IsNullOrWhiteSpace(selectedDepartment) || session.Department == selectedDepartment));
+
+            return sortOrder == "subject"
+                ? result.OrderBy(session => session.Subject).ThenBy(session => session.Date)
+                : result.OrderBy(session => session.Date);
+        }
+    }
+
+    private void ToggleSignup(DemoSession session)
+    {
+        if (session.IsSignedUp)
+        {
+            session.IsSignedUp = false;
+            session.FreePlaces++;
+            feedback = "Демонстрационная запись отменена. Изменения не сохраняются.";
+            return;
+        }
+
+        if (session.FreePlaces == 0)
+        {
+            return;
+        }
+
+        session.IsSignedUp = true;
+        session.FreePlaces--;
+        feedback = "Вы записаны в демонстрационном макете. Изменения не сохраняются.";
+    }
+
+    private sealed class DemoSession(
+        string teacherName,
+        string subject,
+        string department,
+        string academicTitle,
+        string room,
+        DateTime date,
+        string time,
+        int maxPlaces,
+        int freePlaces,
+        bool isSignedUp = false)
+    {
+        public string TeacherName { get; } = teacherName;
+        public string Subject { get; } = subject;
+        public string Department { get; } = department;
+        public string AcademicTitle { get; } = academicTitle;
+        public string Room { get; } = room;
+        public DateTime Date { get; } = date;
+        public string Time { get; } = time;
+        public int MaxPlaces { get; } = maxPlaces;
+        public int FreePlaces { get; set; } = freePlaces;
+        public bool IsSignedUp { get; set; } = isSignedUp;
+    }
+}
+
+

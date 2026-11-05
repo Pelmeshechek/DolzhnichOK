@@ -1,0 +1,106 @@
+@rendermode InteractiveServer
+@page "/"
+@layout Layout.BlankLayout
+
+<PageTitle>Вход — ДолжничОК</PageTitle>
+
+<div class="login-page">
+    <a class="brand login-brand" href="/" aria-label="ДолжничОК — на главную">
+        <span class="brand-mark">Д</span>
+        <span>Должнич<span class="brand-accent">ОК</span></span>
+    </a>
+
+    <main class="login-card">
+        <p class="eyebrow">Университетский сервис</p>
+        <h1>Вход</h1>
+        <p class="login-intro">Выберите свою роль и войдите в личный кабинет.</p>
+
+        <div class="role-switch" role="tablist" aria-label="Выберите роль">
+            <button type="button"
+                    class="role-option @(selectedRole == UserRole.Student ? "active" : "")"
+                    aria-selected="@(selectedRole == UserRole.Student)"
+                    @onclick="() => selectedRole = UserRole.Student">Студент</button>
+            <button type="button"
+                    class="role-option @(selectedRole == UserRole.Teacher ? "active" : "")"
+                    aria-selected="@(selectedRole == UserRole.Teacher)"
+                    @onclick="() => selectedRole = UserRole.Teacher">Преподаватель</button>
+        </div>
+
+        <EditForm Model="@login" OnValidSubmit="@SignIn">
+            <DataAnnotationsValidator />
+
+            <label class="field-label" for="login">Логин</label>
+            <InputText id="login" class="form-control" @bind-Value="login.UserName"
+                       placeholder="Например, ivanov.i" autocomplete="username" />
+            <ValidationMessage For="@(() => login.UserName)" />
+
+            <label class="field-label" for="password">Пароль</label>
+            <InputText id="password" type="password" class="form-control" @bind-Value="login.Password"
+                       placeholder="Введите пароль" autocomplete="current-password" />
+            <ValidationMessage For="@(() => login.Password)" />
+
+            @if (!string.IsNullOrWhiteSpace(message))
+            {
+                <p class="form-message" role="status">@message</p>
+            }
+
+            <div class="login-actions">
+                <button class="button button-primary" type="submit">Войти</button>
+                <button class="button button-quiet" type="button" @onclick="EnterAsGuest">Зайти гостем</button>
+            </div>
+        </EditForm>
+
+        <button type="button" class="text-button forgot-link" @onclick="ShowRecoveryMessage">
+            Забыли логин или пароль?
+        </button>
+    </main>
+
+    <p class="demo-note">Демонстрационный макет. Вход не проверяется и не создаёт аккаунт.</p>
+</div>
+
+@code {
+    private UserRole selectedRole = UserRole.Student;
+    private LoginForm login = new();
+    private string? message;
+
+    private void SignIn()
+    {
+        NavigateToSelectedRole();
+    }
+
+    private void EnterAsGuest()
+    {
+        Navigation.NavigateTo("/student");
+    }
+
+    private void NavigateToSelectedRole()
+    {
+        var destination = selectedRole == UserRole.Student ? "/student" : "/prepodavatel";
+        Navigation.NavigateTo(destination);
+    }
+
+    private void ShowRecoveryMessage()
+    {
+        message = "В макете восстановление пароля пока не подключено.";
+    }
+
+    [Inject]
+    private NavigationManager Navigation { get; set; } = default!;
+
+    private enum UserRole
+    {
+        Student,
+        Teacher
+    }
+
+    private sealed class LoginForm
+    {
+        [Required(ErrorMessage = "Введите логин.")]
+        public string UserName { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Введите пароль.")]
+        public string Password { get; set; } = string.Empty;
+    }
+}
+
+
